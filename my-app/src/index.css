@@ -1,0 +1,14 @@
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animatedBackground {
+  background: linear-gradient(135deg, #f0f0f0, #e6f7ff, #f0f0f0);
+  background-size: 300% 300%;
+  animation: gradientAnimation 10s ease infinite;
+  min-height: 100vh;
+  padding: 60px 30px;
+  font-family: Arial, sans-serif;
+}
