@@ -20,7 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded data
 
 app.use(session({
-    secret: 'secretKey',
+    secret: process.env.secretKey,
     resave: false,
     saveUninitialized: true
 }));
@@ -310,9 +310,9 @@ app.get("/latestpreprints", async (req, res) => {
       const preprints = await Preprint.find().sort({ _id: -1 }).limit(10); // Fetch latest 10 preprints
       res.json(preprints);
     } catch (err) {
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  });
+      res.status(500).json({ error: "Internal Server Error"});
+}
+});
 
 app.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/"));
@@ -322,61 +322,61 @@ app.get("/logout", (req, res) => {
 
 
 
-const videoSchema = new mongoose.Schema({
-    title: String,
-    abstract: String,
-    videoUrl: String
-});
+// const videoSchema = new mongoose.Schema({
+//     title: String,
+//     abstract: String,
+//     videoUrl: String
+// });
 
-const Video = mongoose.model('Video', videoSchema);
+// const Video = mongoose.model('Video', videoSchema);
 
-const ffmpeg = require('fluent-ffmpeg');
-const gTTS = require('gtts');
+// const ffmpeg = require('fluent-ffmpeg');
+// const gTTS = require('gtts');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
-}
+// // Ensure uploads directory exists
+// const uploadsDir = path.join(__dirname, 'uploads');
+// if (!fs.existsSync(uploadsDir)) {
+//     fs.mkdirSync(uploadsDir);
+// }
 
-app.post('/generate-video', async (req, res) => {
-    const { title, abstract } = req.body;
+// app.post('/generate-video', async (req, res) => {
+//     const { title, abstract } = req.body;
 
-    const audioFileName = `${Date.now()}.mp3`;
-    const videoFileName = `${Date.now()}.mp4`;
-    const audioPath = path.join(uploadsDir, audioFileName);
-    const videoPath = path.join(uploadsDir, videoFileName);
-    const imagePath = path.join(__dirname, 'uploads', 'static-image.jpg');  // Ensure static-image.jpg exists
+//     const audioFileName = `${Date.now()}.mp3`;
+//     const videoFileName = `${Date.now()}.mp4`;
+//     const audioPath = path.join(uploadsDir, audioFileName);
+//     const videoPath = path.join(uploadsDir, videoFileName);
+//     const imagePath = path.join(__dirname, 'uploads', 'static-image.jpg');  // Ensure static-image.jpg exists
 
-    const speech = new gTTS(abstract, 'en');
+//     const speech = new gTTS(abstract, 'en');
 
-    speech.save(audioPath, async (err) => {
-        if (err) {
-            console.error('Error generating speech:', err);
-            return res.status(500).send({ success: false, error: err.message });
-        }
+//     speech.save(audioPath, async (err) => {
+//         if (err) {
+//             console.error('Error generating speech:', err);
+//             return res.status(500).send({ success: false, error: err.message });
+//         }
 
-        ffmpeg()
-            .input(imagePath)
-            .input(audioPath)
-            .outputOptions('-c:v', 'libx264', '-tune', 'stillimage', '-shortest')
-            .save(videoPath)
-            .on('stderr', (stderrLine) => console.log(stderrLine))  // Debugging
-            .on('end', async () => {
-                const newVideo = new Video({
-                    title,
-                    abstract,
-                    videoUrl: `/uploads/${videoFileName}`
-                });
-                await newVideo.save();
-                res.send({ success: true, videoUrl: `http://localhost:${PORT}/uploads/${videoFileName}` });
-            })
-            .on('error', (err) => {
-                console.error('Error generating video:', err);
-                res.status(500).send({ success: false, error: err.message });
-            });
-    });
-});
+//         ffmpeg()
+//             .input(imagePath)
+//             .input(audioPath)
+//             .outputOptions('-c:v', 'libx264', '-tune', 'stillimage', '-shortest')
+//             .save(videoPath)
+//             .on('stderr', (stderrLine) => console.log(stderrLine))  // Debugging
+//             .on('end', async () => {
+//                 const newVideo = new Video({
+//                     title,
+//                     abstract,
+//                     videoUrl: `/uploads/${videoFileName}`
+//                 });
+//                 await newVideo.save();
+//                 res.send({ success: true, videoUrl: `http://localhost:${PORT}/uploads/${videoFileName}` });
+//             })
+//             .on('error', (err) => {
+//                 console.error('Error generating video:', err);
+//                 res.status(500).send({ success: false, error: err.message });
+//             });
+//     });
+// });
 
 
 app.listen(PORT, () => {
