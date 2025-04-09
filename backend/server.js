@@ -6,7 +6,6 @@ const path = require('path');
 const User = require('./models/User.js');
 
 const jwt = require("jsonwebtoken");
-const secretKey = "mySuperSecretKey123";
 const bcrypt = require('bcrypt');
 const PORT = process.env.PORT || 5000;
 require('dotenv').config();
@@ -18,16 +17,18 @@ const app = express();
 app.use(cors());
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded data
-
+const secret = process.env.secretKey;
 app.use(session({
-    secret: process.env.secretKey,
+    secret: secret,
     resave: false,
     saveUninitialized: true
 }));
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URL, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
+    ssl: true,                   // Enables SSL/TLS
+  sslValidate: true  
 }).then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('Error connecting to MongoDB:', err));
 
@@ -73,7 +74,7 @@ const verifyToken = (req, res, next) => {
     const token = authHeader.split(" ")[1]; // Extract token after "Bearer"
     console.log("Extracted Token:", token);
 
-    jwt.verify(token, "secretKey", (err, user) => {
+    jwt.verify(token, secret, (err, user) => {
         if (err) {
             console.error("Token Verification Failed:", err);
             return res.status(403).json({ success: false, error: "Invalid Token" });
@@ -85,18 +86,45 @@ const verifyToken = (req, res, next) => {
 // Import the Preprint model
 const Preprint = require('./models/Preprint');
 
-// Routes
+// // Routes
+// app.get('/search', async (req, res) => {
+//     try {
+//         const searchQuery = req.query.query || '';  // Fix the query parameter
+//         console.log('Search Query:', searchQuery);
+
+//         let preprints = await Preprint.find({
+//             title: { $regex: searchQuery, $options: "i" }  // Efficient filtering in MongoDB
+//         });
+
+//         console.log('Final Displayed Preprints:', preprints);
+//         res.json(preprints);  // Send JSON response
+//     } catch (err) {
+//         console.error('Error fetching preprints:', err);
+//         res.status(500).json({ error: 'Internal Server Error' });
+//     }
+// });
+
+
 app.get('/search', async (req, res) => {
     try {
-        const searchQuery = req.query.query || '';  // Fix the query parameter
-        console.log('Search Query:', searchQuery);
+        const searchQuery = req.query.query || '';
 
-        let preprints = await Preprint.find({
-            title: { $regex: searchQuery, $options: "i" }  // Efficient filtering in MongoDB
+        // Validate query
+        if (!/^[\w\s]{0,50}$/.test(searchQuery)) {
+            return res.status(400).json({ error: 'Invalid search query. Use alphanumerics and spaces only (max 50 chars).' });
+        }
+
+        // Escape regex special characters
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        const safeSearchQuery = escapeRegex(searchQuery);
+
+        const preprints = await Preprint.find({
+            title: { $regex: safeSearchQuery, $options: "i" }
         });
 
-        console.log('Final Displayed Preprints:', preprints);
-        res.json(preprints);  // Send JSON response
+        res.json(preprints);
     } catch (err) {
         console.error('Error fetching preprints:', err);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -130,7 +158,7 @@ app.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ success: false, error: 'Invalid email or password' });
 
-        const token = jwt.sign({ userId: user._id }, "secretKey", { expiresIn: "10m" });
+        const token = jwt.sign({ userId: user._id }, secret, { expiresIn: "10m" });
 
         //localStorage.setItem("token", token);
        // console.log("Stored Token:", localStorage.getItem("token")); // 🔍 Debugging
@@ -279,10 +307,10 @@ app.post('/signup', async (req, res) => {
         await newUser.save();
 
         // Directly use a secret key instead of process.env.JWT_SECRET
-        const secretKey = "mySuperSecretKey123"; // Replace with your own secure key
+        // const secretKey = "mySuperSecretKey123"; // Replace with your own secure key
         
         
-        const token = jwt.sign({ id: newUser._id }, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign({ id: newUser._id }, secret, { expiresIn: '1h' });
 
         res.json({ success: true, token });
     } catch (err) {
