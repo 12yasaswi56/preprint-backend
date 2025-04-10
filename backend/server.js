@@ -172,14 +172,45 @@ app.post('/login', async (req, res) => {
 
 
 
+// app.get('/preprints', async (req, res) => {
+//     try {
+//         const searchQuery = req.query.search || '';
+//         let preprints = await Preprint.find();
+
+//         if (searchQuery) {
+//             preprints = preprints.filter(preprint =>
+//                 new RegExp(searchQuery, 'i').test(preprint.title)
+//             );
+//         }
+
+//         res.json({ success: true, preprints });
+//     } catch (err) {
+//         console.error('Error fetching preprints:', err);
+//         res.status(500).json({ success: false, error: 'Internal Server Error' });
+//     }
+// });
+
 app.get('/preprints', async (req, res) => {
     try {
         const searchQuery = req.query.search || '';
+
+        // ✅ Validate input type and length
+        if (typeof searchQuery !== 'string' || searchQuery.length > 100) {
+            return res.status(400).json({ success: false, error: 'Invalid or too long search query' });
+        }
+
         let preprints = await Preprint.find();
 
         if (searchQuery) {
+            let regex;
+            try {
+                regex = new RegExp(searchQuery, 'i'); // i = case-insensitive
+            } catch (e) {
+                return res.status(400).json({ success: false, error: 'Invalid search pattern' });
+            }
+
             preprints = preprints.filter(preprint =>
-                new RegExp(searchQuery, 'i').test(preprint.title)
+                regex.test(preprint.title)
             );
         }
 
@@ -189,6 +220,7 @@ app.get('/preprints', async (req, res) => {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
+
 
 
 function generateDOI() {
