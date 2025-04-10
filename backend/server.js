@@ -17,6 +17,11 @@ const app = express();
 app.use(cors());
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded data
+
+const helmet = require('helmet');
+app.use(helmet()); // Place near top
+app.disable('x-powered-by'); // Optional redundancy
+
 const secret = process.env.secretKey;
 app.use(session({
     secret: secret,
