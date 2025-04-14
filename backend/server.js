@@ -195,6 +195,11 @@ app.post('/login', async (req, res) => {
 //     }
 // });
 
+// Utility function to escape regex special characters
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 app.get('/preprints', async (req, res) => {
     try {
         const searchQuery = req.query.search || '';
@@ -209,7 +214,8 @@ app.get('/preprints', async (req, res) => {
         if (searchQuery) {
             let regex;
             try {
-                regex = new RegExp(searchQuery, 'i'); // i = case-insensitive
+                const safeQuery = escapeRegex(searchQuery); // 🔐 Escape special characters
+                regex = new RegExp(safeQuery, 'i');          // Now safe to use in RegExp
             } catch (e) {
                 return res.status(400).json({ success: false, error: 'Invalid search pattern' });
             }
@@ -225,6 +231,37 @@ app.get('/preprints', async (req, res) => {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
+
+// app.get('/preprints', async (req, res) => {
+//     try {
+//         const searchQuery = req.query.search || '';
+
+//         // ✅ Validate input type and length
+//         if (typeof searchQuery !== 'string' || searchQuery.length > 100) {
+//             return res.status(400).json({ success: false, error: 'Invalid or too long search query' });
+//         }
+
+//         let preprints = await Preprint.find();
+
+//         if (searchQuery) {
+//             let regex;
+//             try {
+//                 regex = new RegExp(searchQuery, 'i'); // i = case-insensitive
+//             } catch (e) {
+//                 return res.status(400).json({ success: false, error: 'Invalid search pattern' });
+//             }
+
+//             preprints = preprints.filter(preprint =>
+//                 regex.test(preprint.title)
+//             );
+//         }
+
+//         res.json({ success: true, preprints });
+//     } catch (err) {
+//         console.error('Error fetching preprints:', err);
+//         res.status(500).json({ success: false, error: 'Internal Server Error' });
+//     }
+// });
 
 
 
