@@ -196,7 +196,11 @@ app.post('/login', async (req, res) => {
 // });
 
 // Utility function to escape regex special characters
+// function escapeRegex(string) {
+//     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// }
 function escapeRegex(string) {
+    if (typeof string !== 'string') return '';
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
