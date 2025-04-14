@@ -112,17 +112,22 @@ const Preprint = require('./models/Preprint');
 
 app.get('/search', async (req, res) => {
     try {
-        const searchQuery = req.query.query || '';
+        const rawQuery = req.query.query;
 
-        // Validate query
+        // Ensure it's a string
+        const searchQuery = typeof rawQuery === 'string' ? rawQuery : '';
+
+        // Validate query (only alphanumerics and spaces, max 50 chars)
         if (!/^[\w\s]{0,50}$/.test(searchQuery)) {
             return res.status(400).json({ error: 'Invalid search query. Use alphanumerics and spaces only (max 50 chars).' });
         }
 
         // Escape regex special characters
-        function escapeRegex(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        function escapeRegex(input) {
+            if (typeof input !== 'string') return ''; // Defensive check
+            return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
+
         const safeSearchQuery = escapeRegex(searchQuery);
 
         const preprints = await Preprint.find({
@@ -135,6 +140,32 @@ app.get('/search', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+// app.get('/search', async (req, res) => {
+//     try {
+//         const searchQuery = req.query.query || '';
+
+//         // Validate query
+//         if (!/^[\w\s]{0,50}$/.test(searchQuery)) {
+//             return res.status(400).json({ error: 'Invalid search query. Use alphanumerics and spaces only (max 50 chars).' });
+//         }
+
+//         // Escape regex special characters
+//         function escapeRegex(string) {
+//             return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+//         }
+//         const safeSearchQuery = escapeRegex(searchQuery);
+
+//         const preprints = await Preprint.find({
+//             title: { $regex: safeSearchQuery, $options: "i" }
+//         });
+
+//         res.json(preprints);
+//     } catch (err) {
+//         console.error('Error fetching preprints:', err);
+//         res.status(500).json({ error: 'Internal Server Error' });
+//     }
+// });
 
 
 
