@@ -6,7 +6,7 @@ const path = require('path');
 const User = require('./models/User.js');
 
 const jwt = require("jsonwebtoken");
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const PORT = process.env.PORT || 5000;
 require('dotenv').config();
 const session = require('express-session');
