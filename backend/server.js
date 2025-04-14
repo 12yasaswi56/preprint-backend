@@ -323,25 +323,40 @@ function extractReferences(text) {
 
 const pdfParse = require('pdf-parse');
 
+const rateLimit = require('express-rate-limit');
+const submitLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Max 5 requests per IP during this window
+    message: {
+      success: false,
+      error: "Too many submissions from this IP. Please try again later."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
-
-app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
+app.post(
+  '/submit',
+  submitLimiter,              // ✅ Rate limiter middleware
+  verifyToken,
+  upload.single('pdf'),
+  async (req, res) => {
     try {
-        console.log("Received Data:", req.body); // Log request body
-        console.log("Uploaded File:", req.file); // Log uploaded file details
-       
+        console.log("Received Data:", req.body);
+        console.log("Uploaded File:", req.file);
+
         const { title, author, abstract } = req.body;
         const userId = req.user.userId;
-        
+
         if (!req.file) {
             return res.status(400).json({ success: false, error: "No PDF uploaded." });
         }
-        
+
         const dataBuffer = fs.readFileSync(req.file.path);
         const pdfText = (await pdfParse(dataBuffer)).text;
         const references = extractReferences(pdfText);
         const doi = generateDOI();
-        
+
         const newPreprint = new Preprint({
             title, author, abstract,
             pdf: req.file.filename,
@@ -349,6 +364,7 @@ app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
             user: userId,
             status: "Submitted"
         });
+
         await newPreprint.save();
 
         console.log("Preprint saved successfully with DOI:", doi);
@@ -358,6 +374,41 @@ app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
         res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
+
+
+// app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
+//     try {
+//         console.log("Received Data:", req.body); // Log request body
+//         console.log("Uploaded File:", req.file); // Log uploaded file details
+       
+//         const { title, author, abstract } = req.body;
+//         const userId = req.user.userId;
+        
+//         if (!req.file) {
+//             return res.status(400).json({ success: false, error: "No PDF uploaded." });
+//         }
+        
+//         const dataBuffer = fs.readFileSync(req.file.path);
+//         const pdfText = (await pdfParse(dataBuffer)).text;
+//         const references = extractReferences(pdfText);
+//         const doi = generateDOI();
+        
+//         const newPreprint = new Preprint({
+//             title, author, abstract,
+//             pdf: req.file.filename,
+//             references, doi,
+//             user: userId,
+//             status: "Submitted"
+//         });
+//         await newPreprint.save();
+
+//         console.log("Preprint saved successfully with DOI:", doi);
+//         res.json({ success: true, message: "Preprint submitted successfully!", doi });
+//     } catch (err) {
+//         console.error("Error processing PDF:", err);
+//         res.status(500).json({ success: false, error: "Internal Server Error" });
+//     }
+// });
 
 
 //signup route
