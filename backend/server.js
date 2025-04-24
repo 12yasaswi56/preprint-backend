@@ -31,9 +31,9 @@ app.use(session({
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URL, {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    ssl: true,                   // Enables SSL/TLS
-  sslValidate: true  
+    useUnifiedTopology: true
+//     ssl: true,                   // Enables SSL/TLS
+//   sslValidate: true  
 }).then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('Error connecting to MongoDB:', err));
 
