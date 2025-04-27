@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
 const User = require('./models/User.js');
-
+import cloudinary from "../cloudinary.js";
 const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
 const PORT = process.env.PORT || 5000;
@@ -44,28 +44,41 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve static files from the "uploads" folder
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 
 // Ensure the uploads directory exists
-const fs = require('fs');
-const uploadDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+// const fs = require('fs');
+// const uploadDir = path.join(__dirname, 'public', 'uploads');
+// if (!fs.existsSync(uploadDir)) {
+//     fs.mkdirSync(uploadDir, { recursive: true });
+// }
 
-// Multer configuration for file uploads
+// // Multer configuration for file uploads
+// const storage = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         cb(null, uploadDir); // Save uploaded files to the 'public/uploads/' directory
+//     },
+//     filename: function (req, file, cb) {
+//         cb(null, Date.now() + '-' + file.originalname); // Use a unique filename
+//     }
+// });
+
+// const upload = multer({ storage: storage });
+
+
+
+// const upload = multer({ dest: "uploads/" }); // temp folder
+
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir); // Save uploaded files to the 'public/uploads/' directory
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/'); // Assuming you want to save files to the "uploads" directory
     },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname); // Use a unique filename
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);  // Retains original filename
     }
-});
-
-const upload = multer({ storage: storage });
-
+  });
+  const upload = multer({ storage });
 
 // to verify the token
 const verifyToken = (req, res, next) => {
@@ -370,46 +383,106 @@ const submitLimiter = rateLimit({
     legacyHeaders: false,
   });
 
+// app.post(
+//   '/submit',
+//   submitLimiter,              // ✅ Rate limiter middleware
+//   verifyToken,
+//   upload.single('pdf'),
+//   async (req, res) => {
+//     try {
+//         console.log("Received Data:", req.body);
+//         console.log("Uploaded File:", req.file);
+
+//         const { title, author, abstract } = req.body;
+//         const userId = req.user.userId;
+
+//         if (!req.file) {
+//             return res.status(400).json({ success: false, error: "No PDF uploaded." });
+//         }
+
+//         const dataBuffer = fs.readFileSync(req.file.path);
+//         const pdfText = (await pdfParse(dataBuffer)).text;
+//         const references = extractReferences(pdfText);
+//         const doi = generateDOI();
+
+//         const newPreprint = new Preprint({
+//             title, author, abstract,
+//             pdf: req.file.filename,
+//             references, doi,
+//             user: userId,
+//             status: "Submitted"
+//         });
+
+//         await newPreprint.save();
+
+//         console.log("Preprint saved successfully with DOI:", doi);
+//         res.json({ success: true, message: "Preprint submitted successfully!", doi });
+//     } catch (err) {
+//         console.error("Error processing PDF:", err);
+//         res.status(500).json({ success: false, error: "Internal Server Error" });
+//     }
+// });
 app.post(
-  '/submit',
-  submitLimiter,              // ✅ Rate limiter middleware
-  verifyToken,
-  upload.single('pdf'),
-  async (req, res) => {
-    try {
+    '/submit',
+    verifyToken,
+    upload.single('pdf'),  // Upload the file
+    async (req, res) => {
+      try {
         console.log("Received Data:", req.body);
         console.log("Uploaded File:", req.file);
-
+  
         const { title, author, abstract } = req.body;
-        const userId = req.user.userId;
-
+        const userId = req.user.userId;  // Assuming userId is in the token
+  
         if (!req.file) {
-            return res.status(400).json({ success: false, error: "No PDF uploaded." });
+          return res.status(400).json({ success: false, error: "No PDF uploaded." });
         }
-
+  
+        // Read the PDF file locally
         const dataBuffer = fs.readFileSync(req.file.path);
         const pdfText = (await pdfParse(dataBuffer)).text;
+  
+        // Upload the PDF to Cloudinary
+        const cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
+          resource_type: 'raw', // Important for PDFs
+          folder: 'preprints',  // Optional folder in Cloudinary
+        });
+  
+        const pdfUrl = cloudinaryResult.secure_url;  // URL of the uploaded PDF
+        console.log("Uploaded to Cloudinary:", pdfUrl);
+  
+        // Clean up the local temp file after uploading (optional but recommended)
+        fs.unlinkSync(req.file.path);
+  
+        // Extract references from the PDF text
         const references = extractReferences(pdfText);
         const doi = generateDOI();
-
+  
+        // Create a new Preprint document
         const newPreprint = new Preprint({
-            title, author, abstract,
-            pdf: req.file.filename,
-            references, doi,
-            user: userId,
-            status: "Submitted"
+          title,
+          author,
+          abstract,
+          pdf: pdfUrl,  // Save the Cloudinary URL, not the local filename
+          references,
+          doi,
+          user: userId,
+          status: "Submitted"
         });
-
+  
+        // Save the Preprint to the database
         await newPreprint.save();
-
+  
         console.log("Preprint saved successfully with DOI:", doi);
         res.json({ success: true, message: "Preprint submitted successfully!", doi });
-    } catch (err) {
+  
+      } catch (err) {
         console.error("Error processing PDF:", err);
         res.status(500).json({ success: false, error: "Internal Server Error" });
+      }
     }
-});
-
+  );
+  
 
 // app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
 //     try {
