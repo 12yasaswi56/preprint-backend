@@ -4,9 +4,9 @@ const cloudinary = require('cloudinary').v2;
 require('dotenv').config(); // to read .env inside this file too if needed
 
 cloudinary.config({
-  cloud_name: process.env.cloud_name,
-  api_key: process.env.api_key,
-  api_secret: process.env.api_secret
+  cloud_name: process.env.Cloud_name,
+  api_key: process.env.Api_key,
+  api_secret: process.env.Api_secret
 });
 
 const uploadToCloudinary = (filePath) => {
