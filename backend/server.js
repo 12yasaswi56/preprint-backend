@@ -44,26 +44,26 @@ mongoose.connect(process.env.MONGO_URL, {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve static files from the "uploads" folder
-// app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+//Serve static files from the "uploads" folder
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 
-// Ensure the uploads directory exists
-// const fs = require('fs');
-// const uploadDir = path.join(__dirname, 'public', 'uploads');
-// if (!fs.existsSync(uploadDir)) {
-//     fs.mkdirSync(uploadDir, { recursive: true });
-// }
+//Ensure the uploads directory exists
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-// // Multer configuration for file uploads
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//         cb(null, uploadDir); // Save uploaded files to the 'public/uploads/' directory
-//     },
-//     filename: function (req, file, cb) {
-//         cb(null, Date.now() + '-' + file.originalname); // Use a unique filename
-//     }
-// });
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir); // Save uploaded files to the 'public/uploads/' directory
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname); // Use a unique filename
+    }
+});
 
 // const upload = multer({ storage: storage });
 
@@ -81,27 +81,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 //   });
 //   const upload = multer({ storage });
 
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            cb(null, 'uploads/');
-        },
-        filename: (req, file, cb) => {
-            cb(null, Date.now() + '-' + file.originalname);
-        }
-    }),
-    limits: { fileSize: 10 * 1024 * 1024 },  // 10 MB limit
-    fileFilter: (req, file, cb) => {
-        const fileTypes = /pdf|jpeg|jpg|png/;
-        const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = fileTypes.test(file.mimetype);
+// const upload = multer({
+//     storage: multer.diskStorage({
+//         destination: (req, file, cb) => {
+//             cb(null, 'uploads/');
+//         },
+//         filename: (req, file, cb) => {
+//             cb(null, Date.now() + '-' + file.originalname);
+//         }
+//     }),
+//     limits: { fileSize: 10 * 1024 * 1024 },  // 10 MB limit
+//     fileFilter: (req, file, cb) => {
+//         const fileTypes = /pdf|jpeg|jpg|png/;
+//         const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+//         const mimetype = fileTypes.test(file.mimetype);
 
-        if (extname && mimetype) {
-            return cb(null, true);
-        }
-        cb(new Error('Invalid file type. Only PDFs and images are allowed.'));
-    }
-});
+//         if (extname && mimetype) {
+//             return cb(null, true);
+//         }
+//         cb(new Error('Invalid file type. Only PDFs and images are allowed.'));
+//     }
+// });
 
 
 // to verify the token
@@ -507,102 +507,102 @@ const submitLimiter = rateLimit({
 //     }
 //   );
 
-app.post(
-    '/submit',
-    verifyToken,
-    upload.single('pdf'),  // Upload the file
-    async (req, res) => {
-        try {
-            console.log("Received Data:", req.body);
-            console.log("Uploaded File:", req.file);
+// app.post(
+//     '/submit',
+//     verifyToken,
+//     upload.single('pdf'),  // Upload the file
+//     async (req, res) => {
+//         try {
+//             console.log("Received Data:", req.body);
+//             console.log("Uploaded File:", req.file);
 
-            const { title, author, abstract } = req.body;
-            const userId = req.user.userId;  // Assuming userId is in the token
+//             const { title, author, abstract } = req.body;
+//             const userId = req.user.userId;  // Assuming userId is in the token
 
-            if (!req.file) {
-                return res.status(400).json({ success: false, error: "No PDF uploaded." });
-            }
+//             if (!req.file) {
+//                 return res.status(400).json({ success: false, error: "No PDF uploaded." });
+//             }
 
-            // Read the PDF file locally
-            const dataBuffer = fs.readFileSync(req.file.path);
-            const pdfText = (await pdfParse(dataBuffer)).text;
+//             // Read the PDF file locally
+//             const dataBuffer = fs.readFileSync(req.file.path);
+//             const pdfText = (await pdfParse(dataBuffer)).text;
 
-            // Upload the PDF to Cloudinary (with resource_type 'raw' for PDFs)
-            const cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
-                resource_type: 'raw', // Important for PDFs
-                folder: 'preprints',  // Optional folder in Cloudinary
-            });
+//             // Upload the PDF to Cloudinary (with resource_type 'raw' for PDFs)
+//             const cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
+//                 resource_type: 'raw', // Important for PDFs
+//                 folder: 'preprints',  // Optional folder in Cloudinary
+//             });
 
-            const pdfUrl = cloudinaryResult.secure_url;  // URL of the uploaded PDF
-            console.log("Uploaded to Cloudinary:", pdfUrl);
+//             const pdfUrl = cloudinaryResult.secure_url;  // URL of the uploaded PDF
+//             console.log("Uploaded to Cloudinary:", pdfUrl);
 
-            // Clean up the local temp file after uploading (optional but recommended)
-            fs.unlinkSync(req.file.path);
+//             // Clean up the local temp file after uploading (optional but recommended)
+//             fs.unlinkSync(req.file.path);
 
-            // Extract references from the PDF text
-            const references = extractReferences(pdfText); // You need to implement this function
-            const doi = generateDOI(); // You need to implement this function
+//             // Extract references from the PDF text
+//             const references = extractReferences(pdfText); // You need to implement this function
+//             const doi = generateDOI(); // You need to implement this function
 
-            // Create a new Preprint document
-            const newPreprint = new Preprint({
-                title,
-                author,
-                abstract,
-                pdf: pdfUrl,  // Save the Cloudinary URL, not the local filename
-                references,
-                doi,
-                user: userId,
-                status: "Submitted"
-            });
+//             // Create a new Preprint document
+//             const newPreprint = new Preprint({
+//                 title,
+//                 author,
+//                 abstract,
+//                 pdf: pdfUrl,  // Save the Cloudinary URL, not the local filename
+//                 references,
+//                 doi,
+//                 user: userId,
+//                 status: "Submitted"
+//             });
 
-            // Save the Preprint to the database
-            await newPreprint.save();
+//             // Save the Preprint to the database
+//             await newPreprint.save();
 
-            console.log("Preprint saved successfully with DOI:", doi);
-            res.json({ success: true, message: "Preprint submitted successfully!", doi });
+//             console.log("Preprint saved successfully with DOI:", doi);
+//             res.json({ success: true, message: "Preprint submitted successfully!", doi });
 
-        } catch (err) {
-            console.error("Error processing PDF:", err);
-            res.status(500).json({ success: false, error: "Internal Server Error" });
-        }
-    }
-);
+//         } catch (err) {
+//             console.error("Error processing PDF:", err);
+//             res.status(500).json({ success: false, error: "Internal Server Error" });
+//         }
+//     }
+// );
 
   
 
-// app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
-//     try {
-//         console.log("Received Data:", req.body); // Log request body
-//         console.log("Uploaded File:", req.file); // Log uploaded file details
+app.post('/submit', verifyToken, upload.single('pdf'), async (req, res) => {
+    try {
+        console.log("Received Data:", req.body); // Log request body
+        console.log("Uploaded File:", req.file); // Log uploaded file details
        
-//         const { title, author, abstract } = req.body;
-//         const userId = req.user.userId;
+        const { title, author, abstract } = req.body;
+        const userId = req.user.userId;
         
-//         if (!req.file) {
-//             return res.status(400).json({ success: false, error: "No PDF uploaded." });
-//         }
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No PDF uploaded." });
+        }
         
-//         const dataBuffer = fs.readFileSync(req.file.path);
-//         const pdfText = (await pdfParse(dataBuffer)).text;
-//         const references = extractReferences(pdfText);
-//         const doi = generateDOI();
+        const dataBuffer = fs.readFileSync(req.file.path);
+        const pdfText = (await pdfParse(dataBuffer)).text;
+        const references = extractReferences(pdfText);
+        const doi = generateDOI();
         
-//         const newPreprint = new Preprint({
-//             title, author, abstract,
-//             pdf: req.file.filename,
-//             references, doi,
-//             user: userId,
-//             status: "Submitted"
-//         });
-//         await newPreprint.save();
+        const newPreprint = new Preprint({
+            title, author, abstract,
+            pdf: req.file.filename,
+            references, doi,
+            user: userId,
+            status: "Submitted"
+        });
+        await newPreprint.save();
 
-//         console.log("Preprint saved successfully with DOI:", doi);
-//         res.json({ success: true, message: "Preprint submitted successfully!", doi });
-//     } catch (err) {
-//         console.error("Error processing PDF:", err);
-//         res.status(500).json({ success: false, error: "Internal Server Error" });
-//     }
-// });
+        console.log("Preprint saved successfully with DOI:", doi);
+        res.json({ success: true, message: "Preprint submitted successfully!", doi });
+    } catch (err) {
+        console.error("Error processing PDF:", err);
+        res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
 
 
 //signup route
