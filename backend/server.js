@@ -8,7 +8,7 @@ const { cloudinary, uploadToCloudinary } = require('./cloudinary.js');
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 require('dotenv').config();
 const session = require('express-session');
 
@@ -21,6 +21,19 @@ app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-enco
 
 const helmet = require('helmet');
 app.use(helmet()); // Place near top
+app.use(
+    helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"], // if you use base64 images
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    })
+  );
 app.disable('x-powered-by'); // Optional redundancy
 
 const secret = process.env.secretKey;
